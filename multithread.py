@@ -24,7 +24,8 @@ redirect_uri = "eexample url here"
 
 # Authentication with OAuth2
 # set open_browser=False to prevent Spotipy from attempting to open the default browser, useful for headless machines
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(open_browser=False,client_id=client_id,client_secret=client_secret,redirect_uri=redirect_uri,scope=scope,cache_path="/home/pi/python-viz/.cache"))
+# modify cache_path to your current working directory or anywhere desired. If it fails to read even after logging into spotify, make sure permissions on the file are set properly.
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(open_browser=False,client_id=client_id,client_secret=client_secret,redirect_uri=redirect_uri,scope=scope,cache_path="/home/pi/.cache-spotifyviz"))
 
 
 
