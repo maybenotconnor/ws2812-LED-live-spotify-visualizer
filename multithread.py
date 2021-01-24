@@ -179,15 +179,7 @@ class Lights(threading.Thread):
                 #can loop to repeat each color for longer, not necessary in multithreading
                 for _ in range(1):
                     #queue current rgb to list
-                    try:
-                        self.rgb_list.append([rgb[0],rgb[1],rgb[2]])
-                    except:
-                        pass
-
-                    #shorten rgb_list to strip length
-                    if len(self.rgb_list) > strip.numPixels():
-                        self.rgb_list.pop(0)
-
+                    Lights.addStack([rgb[0],rgb[1],rgb[2]])
                     #set strip brightness
                     strip.setBrightness(int(brightness))
 
@@ -199,10 +191,23 @@ class Lights(threading.Thread):
                 self.light_loop_time = time.time() - start
                     
             else:
-                time.sleep(2)
+                time.sleep(.5)
                 #if not playing, turn off lights
                 print("No song playing! - Lights")
                 Lights.colorWipe(strip, Color(0, 0, 0), 3)
+                #reset the stack to zero
+                for i in self.rgb_list:
+                    Lights.addStack([0,0,0])
+                    
+    def addStack(self, to_append):
+        #add rgb values to stack to display
+        try:
+            self.rgb_list.append(to_append)
+        except:
+            print("WARN: Could not add RGB values to list")
+        #shorten rgb_list to strip length
+        if len(self.rgb_list) > strip.numPixels():
+            self.rgb_list.pop(0)
     
     def colorWipe(self, strip, color, wait_ms=10):
         #Wipe color across display a pixel at a time, taken directly from library example
