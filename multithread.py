@@ -34,9 +34,6 @@ redirect_uri = os.environ.get("redirect_uri")
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(open_browser=False,client_id=client_id,client_secret=client_secret,redirect_uri=redirect_uri,scope=scope,cache_path="/home/pi/.cache-spotifyviz"))
 
 
-
-
-
 class Spotify(threading.Thread):
     '''object for all spotify functions and conversion to color/brightness, 
     call run to initate infinite loop using all functions'''
@@ -72,7 +69,7 @@ class Spotify(threading.Thread):
                     self.full_loop_time = time.time() - self.start_time + Lights.light_loop_time
                     #print("time to loop: ", round(self.full_loop_time,4), " progress: ", self.progress_ms)
                 else:
-                    logging.error("invalid current segment")
+                    pass
             except:
                 pass
                     
@@ -90,11 +87,11 @@ class Spotify(threading.Thread):
                 is_playing = True
             else:
                 is_playing = False
-                logging.warn("No song playing! - Spotify (if-else)")
+                logging.warning("No song playing! - Spotify (if-else)")
                 time.sleep(1) #if no song playing, time.sleep to save resources - results in delay on starting track
         except:
                 is_playing = False
-                logging.warn("No song playing! - Spotify (exception)")
+                logging.warning("No song playing! - Spotify (exception)")
                 time.sleep(1) #if no song playing, time.sleep to save resources - results in delay on starting track
 
     def runAnalysis(self, track_id):
@@ -138,7 +135,7 @@ class Spotify(threading.Thread):
             #prevent brightness from being zero
             brightness = 25
             rgb = [0,0,0]
-            #logging.warn("low loudness detected") #not an error, just warning of no light output
+            #logging.warning("low loudness detected") #not an error, just warning of no light output
         elif Spotify.convertBrightness(current_loudness) > 254:
             #prevent overflow errors
             brightness = 255
@@ -188,27 +185,31 @@ class Lights(threading.Thread):
 
         while True:
             while is_playing==True:
-                try:
-                    #start light loop ping timer
-                    start = time.time()
+                #start light loop ping timer
+                start = time.time()
 
-                    #queue current rgb to list
-                    Lights.addStack([rgb[0],rgb[1],rgb[2]])
-                    #set strip brightness
-                    strip.setBrightness(int(brightness))
+                for _ in range(1):
+                    try:
+                        #queue current rgb to list
+                        Lights.addStack([rgb[0],rgb[1],rgb[2]])
+                    except:
+                        pass
 
-                    #send strip colors, starting at end with most recent value - appears to move like a waveform
-                    for i, vals in reversed(list(enumerate(self.rgb_list))):
-                        strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
-                    strip.show()
-                    #get ping time
-                    self.light_loop_time = time.time() - start
-                except:
-                    pass
+                    
+                #set strip brightness
+                strip.setBrightness(int(brightness))
+
+                #send strip colors, starting at end with most recent value - appears to move like a waveform
+                for i, vals in reversed(list(enumerate(self.rgb_list))):
+                    strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
+                strip.show()
+                #get ping time
+                self.light_loop_time = time.time() - start
+
             else:
                 time.sleep(.2)
                 #if not playing, turn off lights
-                logging.warn("No song playing! - Lights")
+                logging.warning("No song playing! - Lights")
                 Lights.colorWipe(strip, Color(0, 0, 0), 3)
                 #reset the stack to zero
                 for i in self.rgb_list:
@@ -219,9 +220,9 @@ class Lights(threading.Thread):
         try:
             self.rgb_list.append(to_append)
         except:
-            logging.error("WARN: Could not add RGB values to list")
+            logging.error("Could not add RGB values to list")
         #shorten rgb_list to strip length
-        if len(self.rgb_list) > strip.numPixels():
+        while len(self.rgb_list) > strip.numPixels():
             self.rgb_list.pop(0)
     
     def colorWipe(self, strip, color, wait_ms=10):
