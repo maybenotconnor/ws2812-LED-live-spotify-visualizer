@@ -45,6 +45,7 @@ class Spotify(threading.Thread):
         #initalize variables
         print("initalizing Spotify class")  
         self.toAnalyze = "0"
+        threading.Thread.__init__(self)
         self.current_track_id = "0"
         self.progress_ms = "0"
         self.current_segment = 0
@@ -171,6 +172,7 @@ class Lights(threading.Thread):
         self.rgb_list = []
         self.light_loop_time = 0
         print("initalizing Lights class")
+        threading.Thread.__init__(self)
     
     def run(self):
         #infinite loop color data to led strip
@@ -239,9 +241,6 @@ is_playing = False
 
 #wait to start to resolve startup error on my pi - not necessary for all
 time.sleep(10)
-
-#start threading
-threading.__init__()
 
 #start multiple threads to run concurrently, infinitely
 #note ctrl+c may not end processes, use ctrl+z
