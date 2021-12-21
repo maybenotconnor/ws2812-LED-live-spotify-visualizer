@@ -43,8 +43,7 @@ class Spotify(threading.Thread):
 
     def __init__(self):
         #initalize variables
-        print("initalizing Spotify class")
-        super().__init__()  #call threading init
+        print("initalizing Spotify class")  
         self.toAnalyze = "0"
         self.current_track_id = "0"
         self.progress_ms = "0"
@@ -240,6 +239,9 @@ is_playing = False
 
 #wait to start to resolve startup error on my pi - not necessary for all
 time.sleep(10)
+
+#start threading
+threading.__init__()
 
 #start multiple threads to run concurrently, infinitely
 #note ctrl+c may not end processes, use ctrl+z
