@@ -6,6 +6,9 @@ import threading
 import time
 from matplotlib import cm
 import math
+import logging
+from dotenv import load_dotenv
+import os
 
 # LED strip configuration:
 LED_COUNT = 300       # Number of LED pixels.
@@ -18,9 +21,12 @@ LED_INVERT = False
 
 # fill variables below with your own spotify dev info! More info in link in README
 scope = "user-read-playback-state"
-client_id = "99999999999919999999999"
-client_secret = "9999999999999999999999"
-redirect_uri = "eexample url here"
+
+#credentials loaded from .env
+load_dotenv('.env')
+client_id = os.environ.get("client_id")
+client_secret = os.environ.get("client_secret")
+redirect_uri = os.environ.get("redirect_uri")
 
 # Authentication with OAuth2
 # set open_browser=False to prevent Spotipy from attempting to open the default browser, useful for headless machines
@@ -44,7 +50,7 @@ class Spotify(threading.Thread):
         self.progress_ms = "0"
         self.current_segment = 0
         self.currently_playing = "0"
-        self.is_playing = False
+        #self.is_playing = False
         self.start_time = 0
         self.full_loop_time = 0
         
@@ -55,21 +61,23 @@ class Spotify(threading.Thread):
         while True:
             Spotify.getStatus()
             #print("Progress: ", Spotify.progress_ms)
-            if self.is_playing:
+            try:
                 Spotify.current_track_segment_list = Spotify.runAnalysis(Spotify.current_track_id)
                 #print(Spotify.current_track_segment_list)
-                if Spotify.current_track_segment_list is not None:
-                    #get current segment using linear search, add ping time to current progress in song
-                    Spotify.current_segment = Spotify.linearSearch(Spotify.current_track_segment_list, Spotify.progress_ms+(self.full_loop_time*1000), Spotify.current_segment)
-                    #print("Current segment: ",Spotify.current_segment)
-                    if Spotify.current_segment > 0:
-                        Spotify.getCurrentData(Spotify.current_track_segment_list, Spotify.current_segment)
-                        self.full_loop_time = time.time() - self.start_time + Lights.light_loop_time
-                        #print("time to loop: ", round(self.full_loop_time,4), " progress: ", self.progress_ms)
-                    else:
-                        print("invalid current segment")
+                #get current segment using linear search, add ping time to current progress in song
+                Spotify.current_segment = Spotify.linearSearch(Spotify.current_track_segment_list, Spotify.progress_ms+(self.full_loop_time*1000), Spotify.current_segment)
+                #print("Current segment: ",Spotify.current_segment)
+                if Spotify.current_segment > 0:
+                    Spotify.getCurrentData(Spotify.current_track_segment_list, Spotify.current_segment)
+                    self.full_loop_time = time.time() - self.start_time + Lights.light_loop_time
+                    #print("time to loop: ", round(self.full_loop_time,4), " progress: ", self.progress_ms)
+                else:
+                    logging.error("invalid current segment")
+            except:
+                pass
                     
     def getStatus(self):
+        global is_playing
         #check for currently playing status, track, and progress in track
         currently_playing = sp.current_user_playing_track()
         if currently_playing["is_playing"]==True and currently_playing["currently_playing_type"]=="track":
@@ -78,25 +86,23 @@ class Spotify(threading.Thread):
             #start ping timer
             self.start_time = time.time()
             #print("Current track: ",Spotify.current_track_id)
-            self.is_playing = True
+            is_playing = True
         else:
-            self.is_playing = False
-            print("No song playing! - Spotify")
-            time.sleep(2) #if no song playing, time.sleep to save resources - results in delay on starting track
+            is_playing = False
+            logging.warn("No song playing! - Spotify")
+            time.sleep(1) #if no song playing, time.sleep to save resources - results in delay on starting track
 
     def runAnalysis(self, track_id):
         #check if last analyzed song is still playing, if not then send analysis request and reassign variable
-        if Spotify.toAnalyze != track_id:
+        while Spotify.toAnalyze != track_id:
             Spotify.toAnalyze = track_id
             current_track_analysis = sp.audio_analysis(Spotify.toAnalyze)
             print("New analysis requested: ",Spotify.toAnalyze)
             Spotify.current_track_segment_list = current_track_analysis["segments"]
             #wait for api to return data, may not be necessary
-            time.sleep(.5)
+            #time.sleep(.5)
             #print(current_track_segment_list)
-            return Spotify.current_track_segment_list
-        else:
-            return Spotify.current_track_segment_list
+        return Spotify.current_track_segment_list
 
 
     def linearSearch(self, seg_list, progress, current_segment_index=0):
@@ -105,14 +111,15 @@ class Spotify(threading.Thread):
         for i in range(current_segment_index, len(seg_list)):
             if seg_list[i]["start"] < progress/1000 and (seg_list[i]["start"] + seg_list[i]["duration"]) > progress/1000:
                 return i
+        logging.error("Linear search error! progress_ms not in track data") #this error rarely occurs, defaults to zero
         return -1
-        print("Linear search error! progress_ms not in track data") #this error rarely occurs, defaults to zero
+        
 
     def getCurrentData(self, segment_list, segment):
         #collects data from current segment
         #a segment is typically a single note, less than a second
         #spotify api uses 12 unbounded values for pithes and timbres, based on match confidence compared to predefined parameters
-        current_pitches = segment_list[segment]["pitches"]
+        #current_pitches = segment_list[segment]["pitches"]
         current_timbre = segment_list[segment]["timbre"]
         #loudness measured in -dB 
         current_loudness = segment_list[segment]["loudness_max"]
@@ -126,7 +133,7 @@ class Spotify(threading.Thread):
             #prevent brightness from being zero
             brightness = 25
             rgb = [0,0,0]
-            print("low loudness detected") #not an error, just warning of no light output
+            #logging.warn("low loudness detected") #not an error, just warning of no light output
         elif Spotify.convertBrightness(current_loudness) > 254:
             #prevent overflow errors
             brightness = 255
@@ -161,39 +168,39 @@ class Spotify(threading.Thread):
 
 class Lights(threading.Thread):
     #control light effects on separate thread
-
-    rgb_list = []
-    light_loop_time = 0
-    print("initalizing Lights class")
+    def __init__(self):
+        self.rgb_list = []
+        self.light_loop_time = 0
+        print("initalizing Lights class")
     
     def run(self):
         #infinite loop color data to led strip
         #get values from other class, note no locking is used - was too slow
         global brightness
         global rgb
+        global is_playing
+
         while True:
-            while Spotify.is_playing==True:
+            while is_playing==True:
                 #start light loop ping timer
                 start = time.time()
 
-                #can loop to repeat each color for longer, not necessary in multithreading
-                for _ in range(1):
-                    #queue current rgb to list
-                    Lights.addStack([rgb[0],rgb[1],rgb[2]])
-                    #set strip brightness
-                    strip.setBrightness(int(brightness))
+                #queue current rgb to list
+                Lights.addStack([rgb[0],rgb[1],rgb[2]])
+                #set strip brightness
+                strip.setBrightness(int(brightness))
 
-                    #send strip colors, starting at end with most recent value - appears to move like a waveform
-                    for i, vals in reversed(list(enumerate(self.rgb_list))):
-                        strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
-                    strip.show()
+                #send strip colors, starting at end with most recent value - appears to move like a waveform
+                for i, vals in reversed(list(enumerate(self.rgb_list))):
+                    strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
+                strip.show()
                 #get ping time
                 self.light_loop_time = time.time() - start
                     
             else:
-                time.sleep(.5)
+                time.sleep(.2)
                 #if not playing, turn off lights
-                print("No song playing! - Lights")
+                logging.warn("No song playing! - Lights")
                 Lights.colorWipe(strip, Color(0, 0, 0), 3)
                 #reset the stack to zero
                 for i in self.rgb_list:
@@ -204,7 +211,7 @@ class Lights(threading.Thread):
         try:
             self.rgb_list.append(to_append)
         except:
-            print("WARN: Could not add RGB values to list")
+            logging.error("WARN: Could not add RGB values to list")
         #shorten rgb_list to strip length
         if len(self.rgb_list) > strip.numPixels():
             self.rgb_list.pop(0)
@@ -229,6 +236,7 @@ Lights = Lights()
 #initalize global variables
 rgb = []
 brightness = 255
+is_playing = False
 
 #wait to start to resolve startup error on my pi - not necessary for all
 time.sleep(10)
