@@ -76,8 +76,8 @@ class Spotify(threading.Thread):
     def getStatus(self):
         global is_playing
         #check for currently playing status, track, and progress in track
-        currently_playing = sp.current_user_playing_track()
         try:
+            currently_playing = sp.current_user_playing_track()
             if currently_playing["is_playing"]==True and currently_playing["currently_playing_type"]=="track":
                 Spotify.current_track_id = currently_playing["item"]["id"]
                 Spotify.progress_ms = currently_playing["progress_ms"]
@@ -196,13 +196,13 @@ class Lights(threading.Thread):
                         pass
 
                     
-                #set strip brightness
-                strip.setBrightness(int(brightness))
+                    #set strip brightness
+                    strip.setBrightness(int(brightness))
 
-                #send strip colors, starting at end with most recent value - appears to move like a waveform
-                for i, vals in reversed(list(enumerate(self.rgb_list))):
-                    strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
-                strip.show()
+                    #send strip colors, starting at end with most recent value - appears to move like a waveform
+                    for i, vals in reversed(list(enumerate(self.rgb_list))):
+                        strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
+                    strip.show()
                 #get ping time
                 self.light_loop_time = time.time() - start
 
