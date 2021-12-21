@@ -80,17 +80,22 @@ class Spotify(threading.Thread):
         global is_playing
         #check for currently playing status, track, and progress in track
         currently_playing = sp.current_user_playing_track()
-        if currently_playing["is_playing"]==True and currently_playing["currently_playing_type"]=="track":
-            Spotify.current_track_id = currently_playing["item"]["id"]
-            Spotify.progress_ms = currently_playing["progress_ms"]
-            #start ping timer
-            self.start_time = time.time()
-            #print("Current track: ",Spotify.current_track_id)
-            is_playing = True
-        else:
-            is_playing = False
-            logging.warn("No song playing! - Spotify")
-            time.sleep(1) #if no song playing, time.sleep to save resources - results in delay on starting track
+        try:
+            if currently_playing["is_playing"]==True and currently_playing["currently_playing_type"]=="track":
+                Spotify.current_track_id = currently_playing["item"]["id"]
+                Spotify.progress_ms = currently_playing["progress_ms"]
+                #start ping timer
+                self.start_time = time.time()
+                #print("Current track: ",Spotify.current_track_id)
+                is_playing = True
+            else:
+                is_playing = False
+                logging.warn("No song playing! - Spotify (if-else)")
+                time.sleep(1) #if no song playing, time.sleep to save resources - results in delay on starting track
+        except:
+                is_playing = False
+                logging.warn("No song playing! - Spotify (exception)")
+                time.sleep(1) #if no song playing, time.sleep to save resources - results in delay on starting track
 
     def runAnalysis(self, track_id):
         #check if last analyzed song is still playing, if not then send analysis request and reassign variable
@@ -183,21 +188,23 @@ class Lights(threading.Thread):
 
         while True:
             while is_playing==True:
-                #start light loop ping timer
-                start = time.time()
+                try:
+                    #start light loop ping timer
+                    start = time.time()
 
-                #queue current rgb to list
-                Lights.addStack([rgb[0],rgb[1],rgb[2]])
-                #set strip brightness
-                strip.setBrightness(int(brightness))
+                    #queue current rgb to list
+                    Lights.addStack([rgb[0],rgb[1],rgb[2]])
+                    #set strip brightness
+                    strip.setBrightness(int(brightness))
 
-                #send strip colors, starting at end with most recent value - appears to move like a waveform
-                for i, vals in reversed(list(enumerate(self.rgb_list))):
-                    strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
-                strip.show()
-                #get ping time
-                self.light_loop_time = time.time() - start
-                    
+                    #send strip colors, starting at end with most recent value - appears to move like a waveform
+                    for i, vals in reversed(list(enumerate(self.rgb_list))):
+                        strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
+                    strip.show()
+                    #get ping time
+                    self.light_loop_time = time.time() - start
+                except:
+                    pass
             else:
                 time.sleep(.2)
                 #if not playing, turn off lights
