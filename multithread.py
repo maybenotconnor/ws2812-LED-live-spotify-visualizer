@@ -131,9 +131,9 @@ class Spotify(threading.Thread):
         global brightness
 
         #if loudness is too quiet, turn off lights
-        if Spotify.convertBrightness(current_loudness) < 25:
+        if Spotify.convertBrightness(current_loudness) < 5:
             #prevent brightness from being zero
-            brightness = 25
+            brightness = 5
             rgb = [0,0,0]
             #logging.warning("low loudness detected") #not an error, just warning of no light output
         elif Spotify.convertBrightness(current_loudness) > 254:
@@ -188,7 +188,9 @@ class Lights(threading.Thread):
                 #start light loop ping timer
                 start = time.time()
 
-                for _ in range(1):
+                Lights.colorWipe(strip, Color(rgb[0],rgb[1],rgb[2]), 0)
+
+                '''for _ in range(1):
                     try:
                         #queue current rgb to list
                         Lights.addStack([rgb[0],rgb[1],rgb[2]])
@@ -204,7 +206,7 @@ class Lights(threading.Thread):
                         strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
                     strip.show()
                 #get ping time
-                self.light_loop_time = time.time() - start
+                self.light_loop_time = time.time() - start'''
 
             else:
                 time.sleep(.2)
