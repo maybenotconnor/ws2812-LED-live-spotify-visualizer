@@ -48,8 +48,8 @@ class Spotify(threading.Thread):
         self.current_segment = 0
         self.currently_playing = "0"
         #self.is_playing = False
-        self.start_time = 0
-        self.full_loop_time = 0
+        #self.start_time = 0
+        #self.full_loop_time = 0
         
     def run(self):
         #calls getStatus(), runAnalysis(), linearSearch(), getCurrentData()
@@ -130,25 +130,8 @@ class Spotify(threading.Thread):
         global rgb
         global brightness
 
-        #if loudness is too quiet, turn off lights
-        if Spotify.convertBrightness(current_loudness) < 25:
-            #prevent brightness from being zero
-            brightness = 25
-            rgb = [0,0,0]
-            #logging.warning("low loudness detected") #not an error, just warning of no light output
-        elif Spotify.convertBrightness(current_loudness) > 254:
-            #prevent overflow errors
-            brightness = 255
-            rgb = Spotify.convertTimbre(current_timbre)
-            #rgb = [254,254,254] #uncomment if want max loudness to send white light
-            #print("high loudness detected")
-        else:
-            brightness = Spotify.convertBrightness(current_loudness)
-            rgb = Spotify.convertTimbre(current_timbre)
-
-        #print(brightness)
-        #print(rgb)
-        
+        brightness = Spotify.convertBrightness(current_loudness)
+        rgb = Spotify.convertTimbre(current_timbre)
 
     def convertTimbre(self, timbre):
         #colormap timbre values to be loaded to strip
@@ -165,7 +148,13 @@ class Spotify(threading.Thread):
 
     def convertBrightness(self, current_loudness=0):
         #convert negative loudness to 0-255 brightness using 1.2^x
-        return (1.2**(float(current_loudness))*255)
+        tempbright = int((1.2**(float(current_loudness))*254))
+        #force within range to prevent overflow errors
+        if tempbright < 25:
+            tempbright = 25
+        elif tempbright > 254:
+            tempbright = 255
+        return tempbright
 
 
 class Lights(threading.Thread):
@@ -183,38 +172,33 @@ class Lights(threading.Thread):
         global rgb
         global is_playing
 
-        while True:
-            while is_playing==True:
-                #start light loop ping timer
-                start = time.time()
-
-                for _ in range(1):
-                    try:
-                        #queue current rgb to list
-                        Lights.addStack([rgb[0],rgb[1],rgb[2]])
-                    except:
-                        pass
-
-                    
-                    #set strip brightness
-                    strip.setBrightness(int(brightness))
-
-                    #send strip colors, starting at end with most recent value - appears to move like a waveform
-                    for i, vals in reversed(list(enumerate(self.rgb_list))):
-                        strip.setPixelColor(i, Color(vals[0], vals[1], vals[2]))
-                    strip.show()
-                #get ping time
-                self.light_loop_time = time.time() - start
-
+        while True:                    
+            if is_playing==True:
+                try:
+                    #queue current rgb to list
+                    Lights.addStack([rgb[0],rgb[1],rgb[2]])
+                except:
+                    pass
             else:
                 time.sleep(.2)
                 #if not playing, turn off lights
                 logging.warning("No song playing! - Lights")
-                Lights.colorWipe(strip, Color(0, 0, 0), 3)
+                Lights.colorWipe(strip, Color(0, 0, 0), 3)      #REMOVE COLORWIPE?
                 #reset the stack to zero
                 for i in self.rgb_list:
                     Lights.addStack([0,0,0])
-                    
+
+            #set strip brightness
+            strip.setBrightness(brightness)
+
+            #send strip colors, starting at middle with most recent value - appears to move like a waveform
+            for i, vals in reversed(list(enumerate(self.rgb_list))):
+                #start at far end
+                strip.setPixelColor(int(strip.numPixels() - i), Color(vals[0], vals[1], vals[2]))
+                #start at beginning
+                strip.setPixelColor(int(i), Color(vals[0], vals[1], vals[2]))
+            strip.show()
+
     def addStack(self, to_append):
         #add rgb values to stack to display
         try:
@@ -222,13 +206,16 @@ class Lights(threading.Thread):
         except:
             logging.error("Could not add RGB values to list")
         #shorten rgb_list to strip length
-        while len(self.rgb_list) > strip.numPixels():
+        while len(self.rgb_list) > strip.numPixels()/2 + 1:
             self.rgb_list.pop(0)
     
     def colorWipe(self, strip, color, wait_ms=10):
         #Wipe color across display a pixel at a time, taken directly from library example
-        for i in reversed(range(strip.numPixels())):
-            strip.setPixelColor(i, color)
+        for i in range(strip.numPixels):
+            #start at far end
+            strip.setPixelColor(int(strip.numPixels()/2 - i), color)
+            #start at beginning
+            strip.setPixelColor(int(strip.numPixels()/2 + i), color)
             strip.show()
             time.sleep(wait_ms / 1000.0)
 
